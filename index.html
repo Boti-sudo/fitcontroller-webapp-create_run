@@ -187,12 +187,17 @@
 <div class="bar">
   <div class="error" id="error"></div>
   <button class="btn-secondary" id="addDay">Добавить ещё один тренировочный день</button>
-  <button class="btn-primary" id="save">Сохранить тренировочный день</button>
+  <button class="btn-primary" id="save" hidden>Сохранить тренировочный день</button>
 </div>
 
 <script>
 const tg = window.Telegram ? window.Telegram.WebApp : null;
+const mainButton = tg && tg.MainButton ? tg.MainButton : null;
 if (tg) { tg.ready(); tg.expand(); }
+
+function haptic(type) {
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(type);
+}
 
 const MAX_PAYLOAD = 4096;   // лимит Telegram на sendData
 
@@ -208,6 +213,7 @@ let savedDays = [];   // дни, добавленные кнопкой «Доб�
 
 function showError(text) {
   els.error.textContent = text || '';
+  if (text) haptic('error');
 }
 
 // --- отрисовка -------------------------------------------------------------
@@ -346,7 +352,7 @@ document.getElementById('addDay').onclick = () => {
   showError('');
 };
 
-document.getElementById('save').onclick = () => {
+function handleSave() {
   const collected = collectDay();
   if (collected.error) return showError(collected.error);
 
@@ -363,7 +369,20 @@ document.getElementById('save').onclick = () => {
 
   if (!tg) return showError('Страница открыта не из Telegram — отправить данные некуда.');
   tg.sendData(json);
-};
+}
+
+if (mainButton) {
+  // Нативная кнопка Telegram: живёт вне страницы, клавиатура её не перекрывает.
+  mainButton.setText('Сохранить тренировочный день');
+  mainButton.onClick(handleSave);
+  mainButton.enable();
+  mainButton.show();
+} else {
+  // Открыли в обычном браузере — показываем свою, чтобы страницу можно было проверить.
+  const fallback = document.getElementById('save');
+  fallback.hidden = false;
+  fallback.onclick = handleSave;
+}
 
 addExercise();
 </script>
