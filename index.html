@@ -329,7 +329,7 @@ function collectDay() {
 function buildPayload(days) {
   const complex = els.complex.value.trim();
   if (!complex) return { error: 'Впиши название тренировочного комплекса.' };
-  return { payload: { t: complex, d: days } };
+  return { payload: { k: 'new', t: complex, d: days } };
 }
 
 function resetDayForm() {
