@@ -175,7 +175,7 @@
 
 <div class="field">
   <label for="day">Название тренировочного дня</label>
-  <input id="day" placeholder="Например: День ног" maxlength="64">
+  <input id="day" placeholder="Например: Руки и Спина / Первый день" maxlength="64">
 </div>
 
 <div id="savedDays"></div>
@@ -230,7 +230,7 @@ function addSet(card, reps) {
   set.className = 'set';
   set.innerHTML =
     '<span class="set-num"></span>' +
-    '<input type="number" inputmode="numeric" min="1" max="999" placeholder="12">' +
+    '<input type="number" inputmode="numeric" min="1" max="999" placeholder="10">' +
     '<button class="btn-x" title="Убрать подход">&times;</button>';
   if (reps) set.querySelector('input').value = reps;
   set.querySelector('.btn-x').onclick = () => { set.remove(); renumberSets(card); };
@@ -249,7 +249,7 @@ function addExercise(data) {
       '<button class="btn-x" title="Убрать упражнение">&times;</button>' +
     '</div>' +
     '<div class="field"><input class="ex-name" placeholder="Название упражнения" maxlength="64"></div>' +
-    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц (необязательно)" maxlength="32"></div>' +
+    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц / комментарий (необязательно)" maxlength="64"></div>' +
     '<label>Подходы и повторения</label>' +
     '<div class="sets"></div>' +
     '<button class="btn-add inline" style="margin-top:8px">+ Подход</button>';
