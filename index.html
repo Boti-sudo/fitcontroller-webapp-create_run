@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Создание тренировки</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --text: var(--tg-theme-text-color, #14181f);
+    --hint: var(--tg-theme-hint-color, #77818f);
+    --card: var(--tg-theme-secondary-bg-color, #f2f4f7);
+    --accent: var(--tg-theme-button-color, #2f80ed);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --danger: #d64545;
+    --line: color-mix(in srgb, var(--hint) 28%, transparent);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 16px 16px 96px;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  h1 { font-size: 18px; margin: 0 0 16px; }
+
+  label { display: block; font-size: 13px; color: var(--hint); margin-bottom: 5px; }
+
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+  }
+
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  .field { margin-bottom: 14px; }
+
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .num {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-head .title { flex: 1; font-weight: 600; font-size: 14px; }
+
+  .sets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+
+  .set {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 5px 6px 5px 9px;
+  }
+
+  .set .set-num { font-size: 12px; color: var(--hint); }
+  .set input { width: 54px; padding: 5px 6px; text-align: center; border-radius: 7px; }
+
+  button {
+    font: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+  }
+
+  .btn-add {
+    background: transparent;
+    color: var(--accent);
+    border: 1px dashed var(--line);
+    padding: 9px 14px;
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .btn-add.inline { width: auto; padding: 7px 12px; font-size: 13px; }
+
+  .btn-x {
+    background: transparent;
+    color: var(--hint);
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 6px;
+  }
+
+  .btn-x:hover { color: var(--danger); }
+
+  .bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-text);
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .btn-secondary {
+    background: var(--card);
+    color: var(--text);
+    padding: 12px;
+    font-size: 15px;
+  }
+
+  button:disabled { opacity: .5; cursor: default; }
+
+  .saved {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--hint);
+    background: var(--card);
+    border-radius: 9px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+
+  .error { color: var(--danger); font-size: 13px; margin-bottom: 10px; min-height: 18px; }
+
+  .section-title { font-size: 13px; color: var(--hint); margin: 20px 0 8px; }
+</style>
+</head>
+<body>
+
+<h1>Новая тренировка</h1>
+
+<div class="field">
+  <label for="complex">Название тренировочного комплекса</label>
+  <input id="complex" placeholder="Например: Программа на массу" maxlength="64">
+</div>
+
+<div class="field">
+  <label for="day">Название тренировочного дня</label>
+  <input id="day" placeholder="Например: День ног" maxlength="64">
+</div>
+
+<div id="savedDays"></div>
+
+<div class="section-title">Упражнения</div>
+<div id="exercises"></div>
+<button class="btn-add" id="addExercise">+ Добавить упражнение</button>
+
+<div class="bar">
+  <div class="error" id="error"></div>
+  <button class="btn-secondary" id="addDay">Добавить ещё один тренировочный день</button>
+  <button class="btn-primary" id="save">Сохранить тренировочный день</button>
+</div>
+
+<script>
+const tg = window.Telegram ? window.Telegram.WebApp : null;
+if (tg) { tg.ready(); tg.expand(); }
+
+const MAX_PAYLOAD = 4096;   // лимит Telegram на sendData
+
+const els = {
+  complex: document.getElementById('complex'),
+  day: document.getElementById('day'),
+  exercises: document.getElementById('exercises'),
+  savedDays: document.getElementById('savedDays'),
+  error: document.getElementById('error'),
+};
+
+let savedDays = [];   // дни, добавленные кнопкой «Добавить ещё один»
+
+function showError(text) {
+  els.error.textContent = text || '';
+}
+
+// --- отрисовка -------------------------------------------------------------
+
+function renumber() {
+  els.exercises.querySelectorAll('.card').forEach((card, i) => {
+    card.querySelector('.num').textContent = i + 1;
+  });
+}
+
+function renumberSets(card) {
+  card.querySelectorAll('.set').forEach((set, i) => {
+    set.querySelector('.set-num').textContent = (i + 1) + '.';
+  });
+}
+
+function addSet(card, reps) {
+  const wrap = card.querySelector('.sets');
+  const set = document.createElement('div');
+  set.className = 'set';
+  set.innerHTML =
+    '<span class="set-num"></span>' +
+    '<input type="number" inputmode="numeric" min="1" max="999" placeholder="12">' +
+    '<button class="btn-x" title="Убрать подход">&times;</button>';
+  if (reps) set.querySelector('input').value = reps;
+  set.querySelector('.btn-x').onclick = () => { set.remove(); renumberSets(card); };
+  wrap.appendChild(set);
+  renumberSets(card);
+  return set;
+}
+
+function addExercise(data) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML =
+    '<div class="card-head">' +
+      '<span class="num"></span>' +
+      '<span class="title">Упражнение</span>' +
+      '<button class="btn-x" title="Убрать упражнение">&times;</button>' +
+    '</div>' +
+    '<div class="field"><input class="ex-name" placeholder="Название упражнения" maxlength="64"></div>' +
+    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц (необязательно)" maxlength="32"></div>' +
+    '<label>Подходы и повторения</label>' +
+    '<div class="sets"></div>' +
+    '<button class="btn-add inline" style="margin-top:8px">+ Подход</button>';
+
+  card.querySelector('.card-head .btn-x').onclick = () => { card.remove(); renumber(); };
+  card.querySelector('.btn-add.inline').onclick = () => addSet(card);
+
+  els.exercises.appendChild(card);
+
+  if (data) {
+    card.querySelector('.ex-name').value = data.n || '';
+    card.querySelector('.ex-muscle').value = data.m || '';
+    (data.s || []).forEach(reps => addSet(card, reps));
+  } else {
+    addSet(card);   // один подход сразу, чтобы не тыкать лишний раз
+  }
+
+  renumber();
+  return card;
+}
+
+function renderSavedDays() {
+  els.savedDays.innerHTML = '';
+  savedDays.forEach((day, i) => {
+    const row = document.createElement('div');
+    row.className = 'saved';
+    const count = day.e.length;
+    row.innerHTML = '<span>✓ День ' + (i + 1) + ': <b></b> — упражнений: ' + count + '</span>';
+    row.querySelector('b').textContent = day.n;
+    els.savedDays.appendChild(row);
+  });
+}
+
+// --- сбор данных -----------------------------------------------------------
+
+function collectDay() {
+  const title = els.day.value.trim();
+  if (!title) return { error: 'Впиши название тренировочного дня.' };
+
+  const exercises = [];
+  const cards = els.exercises.querySelectorAll('.card');
+  if (!cards.length) return { error: 'Добавь хотя бы одно упражнение.' };
+
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    const name = card.querySelector('.ex-name').value.trim();
+    if (!name) return { error: 'У упражнения ' + (i + 1) + ' не заполнено название.' };
+
+    const reps = [];
+    const inputs = card.querySelectorAll('.set input');
+    for (const input of inputs) {
+      const value = parseInt(input.value, 10);
+      if (!Number.isInteger(value) || value < 1 || value > 999) {
+        return { error: 'В упражнении ' + (i + 1) + ' есть подход без числа повторений.' };
+      }
+      reps.push(value);
+    }
+    if (!reps.length) {
+      return { error: 'В упражнении ' + (i + 1) + ' нет ни одного подхода.' };
+    }
+
+    const exercise = { n: name, s: reps };
+    const muscle = card.querySelector('.ex-muscle').value.trim();
+    if (muscle) exercise.m = muscle;
+    exercises.push(exercise);
+  }
+
+  return { day: { n: title, e: exercises } };
+}
+
+function buildPayload(days) {
+  const complex = els.complex.value.trim();
+  if (!complex) return { error: 'Впиши название тренировочного комплекса.' };
+  return { payload: { t: complex, d: days } };
+}
+
+function resetDayForm() {
+  els.day.value = '';
+  els.exercises.innerHTML = '';
+  addExercise();
+  els.day.focus();
+}
+
+// --- кнопки ----------------------------------------------------------------
+
+document.getElementById('addExercise').onclick = () => { addExercise(); showError(''); };
+
+document.getElementById('addDay').onclick = () => {
+  const collected = collectDay();
+  if (collected.error) return showError(collected.error);
+  savedDays.push(collected.day);
+  renderSavedDays();
+  resetDayForm();
+  showError('');
+};
+
+document.getElementById('save').onclick = () => {
+  const collected = collectDay();
+  if (collected.error) return showError(collected.error);
+
+  const built = buildPayload(savedDays.concat([collected.day]));
+  if (built.error) return showError(built.error);
+
+  const json = JSON.stringify(built.payload);
+  if (json.length > MAX_PAYLOAD) {
+    return showError(
+      'Слишком много данных за раз (' + json.length + ' из ' + MAX_PAYLOAD +
+      ' байт). Сохрани часть дней и добавь остальные вторым заходом.'
+    );
+  }
+
+  if (!tg) return showError('Страница открыта не из Telegram — отправить данные некуда.');
+  tg.sendData(json);
+};
+
+addExercise();
+</script>
+
+</body>
+</html>
