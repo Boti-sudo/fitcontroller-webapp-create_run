@@ -442,6 +442,8 @@ const params = new URLSearchParams(window.location.hash.slice(1));
 const api = (params.get('api') || '').replace(/\/+$/, '');
 const editDayId = parseInt(params.get('day'), 10);
 const isEdit = Number.isInteger(editDayId);
+// Пришли из папки — её название подставится в поле, но менять его не запрещаем.
+const presetWorkoutId = parseInt(params.get('wk'), 10);
 
 function apiBase() {
   return api;
@@ -478,6 +480,8 @@ async function loadFolders() {
   if (!workouts || !workouts.length) return;
 
   workouts.forEach(workout => {
+    if (workout.workout_id === presetWorkoutId) els.complex.value = workout.title;
+
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = workout.title;
@@ -490,6 +494,7 @@ async function loadFolders() {
   });
 
   els.foldersCap.hidden = false;
+  markChosen(els.complex.value.trim());
   // Вписал руками — подсветка выбранной папки снимается.
   els.complex.addEventListener('input', () => markChosen(els.complex.value.trim()));
 }
