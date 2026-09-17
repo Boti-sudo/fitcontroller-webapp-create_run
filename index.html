@@ -224,6 +224,9 @@ function haptic(type) {
 
 const MAX_PAYLOAD = 4096;   // лимит Telegram на sendData
 
+const DEFAULT_SETS = 4;     // с чем появляется новое упражнение
+const DEFAULT_REPS = 10;
+
 const els = {
   complex: document.getElementById('complex'),
   day: document.getElementById('day'),
@@ -293,7 +296,9 @@ function addExercise(data) {
     card.querySelector('.ex-muscle').value = data.m || '';
     (data.s || []).forEach(reps => addSet(card, reps));
   } else {
-    addSet(card);   // один подход сразу, чтобы не тыкать лишний раз
+    // Среднее по больнице: 4×10. Лишний подход убирается крестиком,
+    // повторения правятся прямо в поле — заполнять с нуля почти никогда не нужно.
+    for (let i = 0; i < DEFAULT_SETS; i++) addSet(card, DEFAULT_REPS);
   }
 
   renumber();
