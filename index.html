@@ -255,7 +255,7 @@ function addExercise(data) {
       '<button class="btn-x" title="Убрать упражнение">&times;</button>' +
     '</div>' +
     '<div class="field"><input class="ex-name" placeholder="Название упражнения" maxlength="64"></div>' +
-    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц / комментарий (необязательно)" maxlength="64"></div>' +
+    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц (обязательно): грудь, ноги, спина…" maxlength="64"></div>' +
     '<label>Подходы и повторения</label>' +
     '<div class="sets"></div>' +
     '<button class="btn-add inline" style="margin-top:8px">+ Подход</button>';
@@ -317,10 +317,13 @@ function collectDay() {
       return { error: 'В упражнении ' + (i + 1) + ' нет ни одного подхода.' };
     }
 
-    const exercise = { n: name, s: reps };
+    // Группа мышц обязательна: по ней строится список тренировок в статистике.
     const muscle = card.querySelector('.ex-muscle').value.trim();
-    if (muscle) exercise.m = muscle;
-    exercises.push(exercise);
+    if (!muscle) {
+      return { error: 'В упражнении ' + (i + 1) + ' не указана группа мышц.' };
+    }
+
+    exercises.push({ n: name, s: reps, m: muscle });
   }
 
   return { day: { n: title, e: exercises } };
