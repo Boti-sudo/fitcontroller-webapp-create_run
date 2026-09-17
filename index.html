@@ -170,6 +170,19 @@
 
   button:disabled { opacity: .5; cursor: default; }
 
+  /* Список уже созданных папок: выбрал — название подставилось в поле. */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chips button {
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+  }
+  .chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .chips-cap { font-size: 12px; color: var(--hint); margin-bottom: 6px; }
+
   .saved {
     display: flex;
     align-items: center;
@@ -193,6 +206,8 @@
 
 <div class="field">
   <label for="complex">Название тренировочного комплекса</label>
+  <div class="chips-cap" id="foldersCap" hidden>Выбери существующий или впиши новый:</div>
+  <div class="chips" id="folders"></div>
   <input id="complex" placeholder="Например: Программа на массу" maxlength="64">
 </div>
 
@@ -229,6 +244,8 @@ const DEFAULT_REPS = 10;
 
 const els = {
   complex: document.getElementById('complex'),
+  folders: document.getElementById('folders'),
+  foldersCap: document.getElementById('foldersCap'),
   day: document.getElementById('day'),
   exercises: document.getElementById('exercises'),
   savedDays: document.getElementById('savedDays'),
@@ -418,8 +435,129 @@ if (mainButton) {
   fallback.hidden = false;
   fallback.onclick = handleSave;
 }
+// --- существующие папки ----------------------------------------------------
 
-addExercise();
+// Параметры приезжают в хеше от бота: адрес API и, для правки, номер дня.
+const params = new URLSearchParams(window.location.hash.slice(1));
+const api = (params.get('api') || '').replace(/\/+$/, '');
+const editDayId = parseInt(params.get('day'), 10);
+const isEdit = Number.isInteger(editDayId);
+
+function apiBase() {
+  return api;
+}
+
+async function apiGet(path) {
+  const response = await fetch(api + path, {
+    headers: {
+      'X-Telegram-Init-Data': tg ? tg.initData : '',
+      'X-Pinggy-No-Screen': '1',
+    },
+  });
+  if (!response.ok) throw new Error('сервер ответил ' + response.status);
+  return response.json();
+}
+
+function markChosen(title) {
+  els.folders.querySelectorAll('button').forEach(button => {
+    button.classList.toggle('on', button.textContent === title);
+  });
+}
+
+async function loadFolders() {
+  const api = apiBase();
+  if (!api || !tg || !tg.initData) return;
+
+  let workouts;
+  try {
+    workouts = (await apiGet('/api/workouts')).workouts;
+  } catch (err) {
+    return;   // молча: заполнить тренировку можно и без списка
+  }
+
+  if (!workouts || !workouts.length) return;
+
+  workouts.forEach(workout => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = workout.title;
+    button.onclick = () => {
+      els.complex.value = workout.title;
+      markChosen(workout.title);
+      showError('');
+    };
+    els.folders.appendChild(button);
+  });
+
+  els.foldersCap.hidden = false;
+  // Вписал руками — подсветка выбранной папки снимается.
+  els.complex.addEventListener('input', () => markChosen(els.complex.value.trim()));
+}
+
+// --- режим правки ----------------------------------------------------------
+
+async function loadDay() {
+  let plan;
+  try {
+    plan = await apiGet('/api/day/' + editDayId);
+  } catch (err) {
+    showError('Не удалось загрузить день. Закрой окно и попробуй ещё раз.');
+    return false;
+  }
+
+  els.complex.value = plan.workout_title;
+  // Папку в этом режиме не меняем: день правится там, где лежит.
+  els.complex.readOnly = true;
+  els.folders.innerHTML = '';
+  els.foldersCap.hidden = true;
+
+  els.day.value = plan.day_title;
+
+  els.exercises.innerHTML = '';
+  plan.exercises.forEach(exercise => addExercise({
+    n: exercise.name,
+    m: exercise.muscle_group || '',
+    s: exercise.sets.map(item => item.reps),
+  }));
+
+  // Правим один день, поэтому «добавить ещё день» тут не к месту.
+  document.getElementById('addDay').hidden = true;
+  return true;
+}
+
+function handleEditSave() {
+  const collected = collectDay();
+  if (collected.error) return showError(collected.error);
+
+  const payload = { k: 'edit', id: editDayId, n: collected.day.n, e: collected.day.e };
+  const json = JSON.stringify(payload);
+  if (json.length > MAX_PAYLOAD) {
+    return showError('Слишком много данных за раз (' + json.length + ' из ' + MAX_PAYLOAD + ').');
+  }
+
+  if (!tg) return showError('Страница открыта не из Telegram — отправить данные некуда.');
+  tg.sendData(json);
+}
+
+(async function start() {
+  if (isEdit) {
+    if (mainButton) mainButton.setText('Сохранить изменения');
+    const ok = await loadDay();
+    if (!ok) return;
+    if (mainButton) {
+      mainButton.offClick(handleSave);
+      mainButton.onClick(handleEditSave);
+    } else {
+      const fallback = document.getElementById('save');
+      fallback.textContent = 'Сохранить изменения';
+      fallback.onclick = handleEditSave;
+    }
+    return;
+  }
+
+  loadFolders();
+  addExercise();
+})();
 </script>
 
 </body>
