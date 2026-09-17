@@ -438,7 +438,9 @@ if (mainButton) {
 // --- существующие папки ----------------------------------------------------
 
 // Параметры приезжают в хеше от бота: адрес API и, для правки, номер дня.
-const params = new URLSearchParams(window.location.hash.slice(1));
+const params = new URLSearchParams(
+  window.location.search.slice(1) + '&' + window.location.hash.slice(1)
+);
 const api = (params.get('api') || '').replace(/\/+$/, '');
 const editDayId = parseInt(params.get('day'), 10);
 const isEdit = Number.isInteger(editDayId);
@@ -474,7 +476,10 @@ async function loadFolders() {
   try {
     workouts = (await apiGet('/api/workouts')).workouts;
   } catch (err) {
-    return;   // молча: заполнить тренировку можно и без списка
+    // Заполнить тренировку можно и без списка, но причину стоит показать:
+    // молчание тут однажды уже стоило долгих поисков.
+    showError('Список папок не загрузился — впиши название вручную.');
+    return;
   }
 
   if (!workouts || !workouts.length) return;
