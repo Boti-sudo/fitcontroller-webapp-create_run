@@ -237,8 +237,6 @@ function haptic(type) {
   if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(type);
 }
 
-const MAX_PAYLOAD = 4096;   // лимит Telegram на sendData
-
 const DEFAULT_SETS = 4;     // с чем появляется новое упражнение
 const DEFAULT_REPS = 10;
 
@@ -253,6 +251,7 @@ const els = {
 };
 
 let savedDays = [];   // дни, добавленные кнопкой «Добавить ещё один»
+let saving = false;
 
 function showError(text) {
   els.error.textContent = text || '';
@@ -411,16 +410,44 @@ function handleSave() {
   const built = buildPayload(savedDays.concat([collected.day]));
   if (built.error) return showError(built.error);
 
-  const json = JSON.stringify(built.payload);
-  if (json.length > MAX_PAYLOAD) {
-    return showError(
-      'Слишком много данных за раз (' + json.length + ' из ' + MAX_PAYLOAD +
-      ' байт). Сохрани часть дней и добавь остальные вторым заходом.'
-    );
+  save(built.payload, 'Тренировка сохранена');
+}
+
+// Сохраняем сами и закрываем окно. sendData здесь больше не при чём: мини-апп
+// открывается инлайн-кнопкой и общается с ботом по HTTP — иначе Telegram не
+// даёт подписи, и страница не может ни прочитать данные, ни записать их.
+async function save(payload, done) {
+  if (!api) return showError('Нет адреса сервера. Открой конструктор из бота заново.');
+  if (saving) return;
+
+  saving = true;
+  setSaving(true);
+  try {
+    if (isEdit) {
+      await apiCall('/api/day/' + editDayId, {
+        method: 'POST',
+        body: JSON.stringify({ n: payload.n, e: payload.e }),
+      });
+    } else {
+      await apiCall('/api/days', { method: 'POST', body: JSON.stringify(payload) });
+    }
+  } catch (err) {
+    saving = false;
+    setSaving(false);
+    return showError('Не удалось сохранить: ' + err.message);
   }
 
-  if (!tg) return showError('Страница открыта не из Telegram — отправить данные некуда.');
-  tg.sendData(json);
+  showError('');
+  if (tg) tg.close(); else showError(done);
+}
+
+function setSaving(on) {
+  if (mainButton) {
+    if (on) { mainButton.showProgress(true); mainButton.disable(); }
+    else { mainButton.hideProgress(); mainButton.enable(); }
+  }
+  const fallback = document.getElementById('save');
+  if (fallback) fallback.disabled = on;
 }
 
 if (mainButton) {
@@ -451,15 +478,27 @@ function apiBase() {
   return api;
 }
 
-async function apiGet(path) {
-  const response = await fetch(api + path, {
+async function apiCall(path, options) {
+  const response = await fetch(api + path, Object.assign({
     headers: {
+      'Content-Type': 'application/json',
       'X-Telegram-Init-Data': tg ? tg.initData : '',
       'X-Pinggy-No-Screen': '1',
     },
-  });
-  if (!response.ok) throw new Error('сервер ответил ' + response.status);
-  return response.json();
+  }, options || {}));
+
+  const text = await response.text();
+  let body = null;
+  try { body = text ? JSON.parse(text) : null; } catch (e) { /* не JSON */ }
+
+  if (!response.ok) {
+    throw new Error((body && body.error) || ('сервер ответил ' + response.status));
+  }
+  return body;
+}
+
+function apiGet(path) {
+  return apiCall(path);
 }
 
 function markChosen(title) {
@@ -539,14 +578,7 @@ function handleEditSave() {
   const collected = collectDay();
   if (collected.error) return showError(collected.error);
 
-  const payload = { k: 'edit', id: editDayId, n: collected.day.n, e: collected.day.e };
-  const json = JSON.stringify(payload);
-  if (json.length > MAX_PAYLOAD) {
-    return showError('Слишком много данных за раз (' + json.length + ' из ' + MAX_PAYLOAD + ').');
-  }
-
-  if (!tg) return showError('Страница открыта не из Telegram — отправить данные некуда.');
-  tg.sendData(json);
+  save({ n: collected.day.n, e: collected.day.e }, 'Изменения сохранены');
 }
 
 (async function start() {
