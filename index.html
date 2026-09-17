@@ -23,7 +23,7 @@
 
   body {
     margin: 0;
-    padding: 16px 16px 96px;
+    padding: 16px 16px 80px;
     background: var(--bg);
     color: var(--text);
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -142,12 +142,16 @@
   .bar {
     position: fixed;
     left: 0; right: 0; bottom: 0;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
     background: var(--bg);
     border-top: 1px solid var(--line);
     display: grid;
-    gap: 8px;
+    gap: 6px;
   }
+
+  /* Пустая строка ошибки держала бы высоту и отступ сетки — панель
+     разрасталась бы над кнопкой на ровном месте. */
+  .bar .error:empty { display: none; }
 
   .btn-primary {
     background: var(--accent);
@@ -178,7 +182,7 @@
     margin-bottom: 8px;
   }
 
-  .error { color: var(--danger); font-size: 13px; margin-bottom: 10px; min-height: 18px; }
+  .error { color: var(--danger); font-size: 13px; }
 
   .section-title { font-size: 13px; color: var(--hint); margin: 20px 0 8px; }
 </style>
@@ -274,7 +278,7 @@ function addExercise(data) {
       '<button class="btn-x" title="Убрать упражнение">&times;</button>' +
     '</div>' +
     '<div class="field"><input class="ex-name" placeholder="Название упражнения" maxlength="64"></div>' +
-    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц (обязательно): грудь, ноги, спина…" maxlength="64"></div>' +
+    '<div class="field"><input class="ex-muscle" placeholder="Группа мышц (необязательно)" maxlength="64"></div>' +
     '<label>Подходы и повторения</label>' +
     '<div class="sets"></div>' +
     '<button class="btn-add inline" style="margin-top:8px">+ Подход</button>';
@@ -323,26 +327,30 @@ function collectDay() {
     const name = card.querySelector('.ex-name').value.trim();
     if (!name) return { error: 'У упражнения ' + (i + 1) + ' не заполнено название.' };
 
+    // Дальше упражнение уже названо — по имени искать ошибку проще, чем по номеру.
+    const where = 'В упражнении «' + name + '»';
+
     const reps = [];
     const inputs = card.querySelectorAll('.set input');
     for (const input of inputs) {
       const value = parseInt(input.value, 10);
       if (!Number.isInteger(value) || value < 1 || value > 999) {
-        return { error: 'В упражнении ' + (i + 1) + ' есть подход без числа повторений.' };
+        input.focus();
+        return { error: where + ' есть подход без числа повторений — заполни или удали его.' };
       }
       reps.push(value);
     }
     if (!reps.length) {
-      return { error: 'В упражнении ' + (i + 1) + ' нет ни одного подхода.' };
+      return { error: where + ' нет ни одного подхода. Добавь хотя бы один.' };
     }
 
-    // Группа мышц обязательна: по ней строится список тренировок в статистике.
+    const exercise = { n: name, s: reps };
+    // Группа мышц необязательна: без неё упражнение сохранится, просто в статистике
+    // такая тренировка встанет без подписи группы.
     const muscle = card.querySelector('.ex-muscle').value.trim();
-    if (!muscle) {
-      return { error: 'В упражнении ' + (i + 1) + ' не указана группа мышц.' };
-    }
+    if (muscle) exercise.m = muscle;
 
-    exercises.push({ n: name, s: reps, m: muscle });
+    exercises.push(exercise);
   }
 
   return { day: { n: title, e: exercises } };
